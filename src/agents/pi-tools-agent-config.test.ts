@@ -574,6 +574,7 @@ describe("Agent-specific tool filtering", () => {
       agentDir: "/tmp/agent-restricted",
       sandbox: {
         enabled: true,
+        backend: "docker",
         sessionKey: "agent:restricted:main",
         workspaceDir: "/tmp/sandbox",
         agentWorkspaceDir: "/tmp/test-restricted",
@@ -634,6 +635,44 @@ describe("Agent-specific tool filtering", () => {
 
     const resultDetails = result?.details as { status?: string } | undefined;
     expect(resultDetails?.status).toBe("completed");
+  });
+
+  it('keeps Docker sandbox workspaceAccess "none" write tools disabled', () => {
+    const tools = createOpenClawCodingTools({
+      sessionKey: "agent:docker-none:main",
+      workspaceDir: "/tmp/test-docker-none",
+      agentDir: "/tmp/agent-docker-none",
+      sandbox: {
+        enabled: true,
+        backend: "docker",
+        sessionKey: "agent:docker-none:main",
+        workspaceDir: "/tmp/sandbox-docker-none",
+        agentWorkspaceDir: "/tmp/test-docker-none",
+        workspaceAccess: "none",
+        containerName: "test-container",
+        containerWorkdir: "/workspace",
+        docker: {
+          image: "test-image",
+          containerPrefix: "test-",
+          workdir: "/workspace",
+          readOnlyRoot: true,
+          tmpfs: [],
+          network: "none",
+          capDrop: [],
+        } satisfies SandboxDockerConfig,
+        tools: {
+          allow: [],
+          deny: [],
+        },
+        fsBridge: sandboxFsBridgeStub,
+        browserAllowHostControl: false,
+      },
+    });
+
+    const toolNames = tools.map((tool) => tool.name);
+    expect(toolNames).not.toContain("write");
+    expect(toolNames).not.toContain("edit");
+    expect(toolNames).not.toContain("apply_patch");
   });
 
   it("keeps sandbox as the implicit exec host default without forcing gateway approvals", async () => {

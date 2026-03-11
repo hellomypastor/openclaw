@@ -185,6 +185,19 @@ export async function maybeRepairSandboxImages(
   if (!sandbox || mode === "off") {
     return cfg;
   }
+  if ((sandbox.backend ?? "docker") === "opensandbox") {
+    const endpoint = sandbox.opensandbox?.endpoint?.trim();
+    if (!endpoint) {
+      note(
+        [
+          `Sandbox mode is enabled (mode: "${mode}", backend: "opensandbox") but no endpoint is configured.`,
+          "Set agents.defaults.sandbox.opensandbox.endpoint to your OpenSandbox lifecycle API URL.",
+        ].join("\n"),
+        "Sandbox",
+      );
+    }
+    return cfg;
+  }
 
   const dockerAvailable = await isDockerAvailable();
   if (!dockerAvailable) {

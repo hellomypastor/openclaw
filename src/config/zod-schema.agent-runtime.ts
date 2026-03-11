@@ -233,6 +233,24 @@ export const SandboxBrowserSchema = z
   .strict()
   .optional();
 
+export const SandboxOpenSandboxSchema = z
+  .object({
+    endpoint: z.string().optional(),
+    apiKey: SecretInputSchema.optional().register(sensitive),
+    protocol: z.enum(["http", "https"]).optional(),
+    image: z.string().optional(),
+    workdir: z.string().optional(),
+    timeoutSeconds: z.number().int().positive().optional(),
+    readyTimeoutSeconds: z.number().int().positive().optional(),
+    resourceLimits: z.record(z.string(), z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    metadata: z.record(z.string(), z.string()).optional(),
+    extensions: z.record(z.string(), z.string()).optional(),
+    execdPort: z.number().int().positive().optional(),
+  })
+  .strict()
+  .optional();
+
 export const SandboxPruneSchema = z
   .object({
     idleHours: z.number().int().nonnegative().optional(),
@@ -482,6 +500,7 @@ const ToolLoopDetectionSchema = z
 
 export const AgentSandboxSchema = z
   .object({
+    backend: z.enum(["docker", "opensandbox"]).optional(),
     mode: z.union([z.literal("off"), z.literal("non-main"), z.literal("all")]).optional(),
     workspaceAccess: z.union([z.literal("none"), z.literal("ro"), z.literal("rw")]).optional(),
     sessionToolsVisibility: z.union([z.literal("spawned"), z.literal("all")]).optional(),
@@ -489,6 +508,7 @@ export const AgentSandboxSchema = z
     perSession: z.boolean().optional(),
     workspaceRoot: z.string().optional(),
     docker: SandboxDockerSchema,
+    opensandbox: SandboxOpenSandboxSchema,
     browser: SandboxBrowserSchema,
     prune: SandboxPruneSchema,
   })
@@ -505,6 +525,20 @@ export const AgentSandboxSchema = z
         message:
           'Sandbox security: browser network mode "container:*" is blocked by default. ' +
           "Set sandbox.docker.dangerouslyAllowContainerNamespaceJoin=true only when you fully trust this runtime.",
+      });
+    }
+    if (data.backend === "opensandbox" && data.workspaceAccess && data.workspaceAccess !== "none") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workspaceAccess"],
+        message: "sandbox.backend=opensandbox currently supports only workspaceAccess=none.",
+      });
+    }
+    if (data.backend === "opensandbox" && data.browser?.enabled) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["browser", "enabled"],
+        message: "sandbox.browser.enabled is not supported when backend=opensandbox.",
       });
     }
   })

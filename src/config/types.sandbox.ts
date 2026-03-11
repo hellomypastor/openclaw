@@ -1,3 +1,7 @@
+import type { SecretInput } from "./types.secrets.js";
+
+export type SandboxBackend = "docker" | "opensandbox";
+
 export type SandboxDockerSettings = {
   /** Docker image to use for sandbox containers. */
   image?: string;
@@ -57,6 +61,33 @@ export type SandboxDockerSettings = {
    * Default behavior blocks container namespace joins to preserve sandbox isolation.
    */
   dangerouslyAllowContainerNamespaceJoin?: boolean;
+};
+
+export type SandboxOpenSandboxSettings = {
+  /** OpenSandbox lifecycle API base URL. */
+  endpoint?: string;
+  /** Optional API key for lifecycle/execd requests. */
+  apiKey?: SecretInput;
+  /** Protocol for returned endpoint URLs. */
+  protocol?: "http" | "https";
+  /** Sandbox image URI. */
+  image?: string;
+  /** Sandbox workdir inside the runtime (default: /workspace). */
+  workdir?: string;
+  /** Sandbox timeout in seconds. */
+  timeoutSeconds?: number;
+  /** Time to wait for sandbox readiness. */
+  readyTimeoutSeconds?: number;
+  /** Resource limits passed to OpenSandbox. */
+  resourceLimits?: Record<string, string>;
+  /** Extra environment variables for sandbox startup. */
+  env?: Record<string, string>;
+  /** Arbitrary metadata for sandbox creation. */
+  metadata?: Record<string, string>;
+  /** Optional extensions payload passed to OpenSandbox. */
+  extensions?: Record<string, string>;
+  /** Execd port exposed by the sandbox runtime. */
+  execdPort?: number;
 };
 
 export type SandboxBrowserSettings = {

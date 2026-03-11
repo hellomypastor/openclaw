@@ -1,5 +1,5 @@
 ---
-summary: "How OpenClaw sandboxing works: modes, scopes, workspace access, and images"
+summary: "How OpenClaw sandboxing works: backends, modes, scopes, workspace access, and images"
 title: Sandboxing
 read_when: "You want a dedicated explanation of sandboxing or need to tune agents.defaults.sandbox."
 status: active
@@ -7,7 +7,7 @@ status: active
 
 # Sandboxing
 
-OpenClaw can run **tools inside Docker containers** to reduce blast radius.
+OpenClaw can run **tools inside an isolated sandbox backend** to reduce blast radius.
 This is **optional** and controlled by configuration (`agents.defaults.sandbox` or
 `agents.list[].sandbox`). If sandboxing is off, tools run on the host.
 The Gateway stays on the host; tool execution runs in an isolated sandbox
@@ -16,10 +16,25 @@ when enabled.
 This is not a perfect security boundary, but it materially limits filesystem
 and process access when the model does something dumb.
 
+## Sandbox backend
+
+`agents.defaults.sandbox.backend` controls **which sandbox runtime** OpenClaw uses:
+
+- `"docker"` (default): runs tools in local Docker containers.
+- `"opensandbox"`: runs tools in an [Alibaba OpenSandbox](https://github.com/alibaba/OpenSandbox)-managed sandbox.
+
+Current OpenSandbox limits:
+
+- only `workspaceAccess: "none"` is supported
+- sandbox browser is not supported
+- interactive PTY and interactive `process` input (`write`, `send-keys`, `submit`, `paste`) are not supported
+
+OpenSandbox still uses the normal sandbox execution path. Keep `exec.host: "sandbox"` if you want commands to run in the sandbox. It is **not** a separate exec host.
+
 ## What gets sandboxed
 
 - Tool execution (`exec`, `read`, `write`, `edit`, `apply_patch`, `process`, etc.).
-- Optional sandboxed browser (`agents.defaults.sandbox.browser`).
+- Optional sandboxed browser (`agents.defaults.sandbox.browser`) when `backend: "docker"`.
   - By default, the sandbox browser auto-starts (ensures CDP is reachable) when the browser tool needs it.
     Configure via `agents.defaults.sandbox.browser.autoStart` and `agents.defaults.sandbox.browser.autoStartTimeoutMs`.
   - By default, sandbox browser containers use a dedicated Docker network (`openclaw-sandbox-browser`) instead of the global `bridge` network.
@@ -50,23 +65,25 @@ Not sandboxed:
 
 `agents.defaults.sandbox.scope` controls **how many containers** are created:
 
-- `"session"` (default): one container per session.
-- `"agent"`: one container per agent.
-- `"shared"`: one container shared by all sandboxed sessions.
+- `"session"` (default): one sandbox runtime per session.
+- `"agent"`: one sandbox runtime per agent.
+- `"shared"`: one sandbox runtime shared by all sandboxed sessions.
 
 ## Workspace access
 
 `agents.defaults.sandbox.workspaceAccess` controls **what the sandbox can see**:
 
 - `"none"` (default): tools see a sandbox workspace under `~/.openclaw/sandboxes`.
-- `"ro"`: mounts the agent workspace read-only at `/agent` (disables `write`/`edit`/`apply_patch`).
-- `"rw"`: mounts the agent workspace read/write at `/workspace`.
+- `"ro"`: mounts the agent workspace read-only at `/agent` (Docker backend only; disables `write`/`edit`/`apply_patch`).
+- `"rw"`: mounts the agent workspace read/write at `/workspace` (Docker backend only).
 
 Inbound media is copied into the active sandbox workspace (`media/inbound/*`).
 Skills note: the `read` tool is sandbox-rooted. With `workspaceAccess: "none"`,
 OpenClaw mirrors eligible skills into the sandbox workspace (`.../skills`) so
 they can be read. With `"rw"`, workspace skills are readable from
 `/workspace/skills`.
+
+With `backend: "opensandbox"`, OpenClaw currently creates and uses the isolated sandbox workspace only. The agent workspace is not mounted or synchronized bidirectionally.
 
 ## Custom bind mounts
 
@@ -114,7 +131,7 @@ Security notes:
 - Combine with `workspaceAccess: "ro"` if you only need read access to the workspace; bind modes stay independent.
 - See [Sandbox vs Tool Policy vs Elevated](/gateway/sandbox-vs-tool-policy-vs-elevated) for how binds interact with tool policy and elevated exec.
 
-## Images + setup
+## Docker images + setup
 
 Default image: `openclaw-sandbox:bookworm-slim`
 
@@ -145,7 +162,7 @@ Sandboxed browser image:
 scripts/sandbox-browser-setup.sh
 ```
 
-By default, sandbox containers run with **no network**.
+By default, Docker sandbox containers run with **no network**.
 Override with `agents.defaults.sandbox.docker.network`.
 
 The bundled sandbox browser image also applies conservative Chromium startup defaults
@@ -196,7 +213,47 @@ Set `OPENCLAW_SANDBOX=1` (or `true`/`yes`/`on`) to enable that path. You can
 override socket location with `OPENCLAW_DOCKER_SOCKET`. Full setup and env
 reference: [Docker](/install/docker#enable-agent-sandbox-for-docker-gateway-opt-in).
 
-## setupCommand (one-time container setup)
+## OpenSandbox setup
+
+OpenSandbox is configured under `agents.defaults.sandbox.opensandbox`.
+OpenClaw integrates with [Alibaba OpenSandbox](https://github.com/alibaba/OpenSandbox) as an alternative sandbox backend.
+
+Minimal example:
+
+```json5
+{
+  agents: {
+    defaults: {
+      sandbox: {
+        backend: "opensandbox",
+        mode: "all",
+        scope: "session",
+        workspaceAccess: "none",
+        opensandbox: {
+          endpoint: "http://127.0.0.1:8080",
+          image: "opensandbox/code-interpreter:latest",
+          workdir: "/workspace",
+        },
+      },
+    },
+  },
+}
+```
+
+Common fields:
+
+- `endpoint`: OpenSandbox lifecycle API base URL
+- `apiKey`: optional API key for the lifecycle API
+- `image`: OpenSandbox image name
+- `workdir`: remote sandbox working directory
+- `timeoutSeconds`: sandbox lifetime
+- `readyTimeoutSeconds`: how long OpenClaw waits for the sandbox to become ready
+- `env`: environment variables to inject into the sandbox
+- `metadata`: extra metadata sent when creating the sandbox
+
+OpenClaw currently uploads the isolated sandbox workspace into OpenSandbox when the runtime is created. This gives `read`, `write`, `edit`, `apply_patch`, and `exec` a consistent sandbox-local filesystem, but it is not the same as Docker bind-mount access.
+
+## Docker setupCommand (one-time container setup)
 
 `setupCommand` runs **once** after the sandbox container is created (not on every run).
 It executes inside the container via `sh -lc`.

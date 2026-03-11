@@ -9,7 +9,7 @@ status: active
 
 OpenClaw has three related (but different) controls:
 
-1. **Sandbox** (`agents.defaults.sandbox.*` / `agents.list[].sandbox.*`) decides **where tools run** (Docker vs host).
+1. **Sandbox** (`agents.defaults.sandbox.*` / `agents.list[].sandbox.*`) decides **where tools run** (sandbox backend vs host).
 2. **Tool policy** (`tools.*`, `tools.sandbox.tools.*`, `agents.list[].tools.*`) decides **which tools are available/allowed**.
 3. **Elevated** (`tools.elevated.*`, `agents.list[].tools.elevated.*`) is an **exec-only escape hatch** to run on the host when you’re sandboxed.
 
@@ -39,7 +39,13 @@ Sandboxing is controlled by `agents.defaults.sandbox.mode`:
 - `"non-main"`: only non-main sessions are sandboxed (common “surprise” for groups/channels).
 - `"all"`: everything is sandboxed.
 
-See [Sandboxing](/gateway/sandboxing) for the full matrix (scope, workspace mounts, images).
+See [Sandboxing](/gateway/sandboxing) for the full matrix (backend, scope, workspace access, images).
+
+Sandbox backend notes:
+
+- `backend: "docker"` runs tools in local Docker containers.
+- `backend: "opensandbox"` runs tools in an [Alibaba OpenSandbox](https://github.com/alibaba/OpenSandbox)-managed runtime.
+- `exec.host: "sandbox"` still means "run inside the configured sandbox backend". OpenSandbox does **not** introduce a separate exec host value.
 
 ### Bind mounts (security quick check)
 

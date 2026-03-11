@@ -342,7 +342,11 @@ export function createOpenClawCodingTools(options?: {
   });
   const sandboxRoot = sandbox?.workspaceDir;
   const sandboxFsBridge = sandbox?.fsBridge;
-  const allowWorkspaceWrites = sandbox?.workspaceAccess !== "ro";
+  const allowWorkspaceWrites = sandbox
+    ? sandbox.backend === "opensandbox"
+      ? sandbox.workspaceAccess !== "ro"
+      : sandbox.workspaceAccess === "rw"
+    : false;
   const workspaceRoot = resolveWorkspaceRoot(options?.workspaceDir);
   const workspaceOnly = fsPolicy.workspaceOnly;
   const applyPatchConfig = execConfig.applyPatch;
@@ -435,10 +439,18 @@ export function createOpenClawCodingTools(options?: {
       options?.exec?.notifyOnExitEmptySuccess ?? execConfig.notifyOnExitEmptySuccess,
     sandbox: sandbox
       ? {
+          backend: sandbox.backend,
           containerName: sandbox.containerName,
           workspaceDir: sandbox.workspaceDir,
           containerWorkdir: sandbox.containerWorkdir,
-          env: sandbox.docker.env,
+          env: sandbox.backend === "docker" ? sandbox.docker.env : undefined,
+          opensandbox: sandbox.opensandbox
+            ? {
+                sandboxId: sandbox.opensandbox.sandboxId,
+                execdBaseUrl: sandbox.opensandbox.execdBaseUrl,
+                apiKey: sandbox.opensandbox.apiKey,
+              }
+            : undefined,
         }
       : undefined,
   });

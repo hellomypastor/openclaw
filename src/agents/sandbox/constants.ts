@@ -7,6 +7,12 @@ export const DEFAULT_SANDBOX_WORKSPACE_ROOT = path.join(STATE_DIR, "sandboxes");
 export const DEFAULT_SANDBOX_IMAGE = "openclaw-sandbox:bookworm-slim";
 export const DEFAULT_SANDBOX_CONTAINER_PREFIX = "openclaw-sbx-";
 export const DEFAULT_SANDBOX_WORKDIR = "/workspace";
+export const DEFAULT_OPENSANDBOX_ENDPOINT = "http://127.0.0.1:8080";
+export const DEFAULT_OPENSANDBOX_PROTOCOL = "http";
+export const DEFAULT_OPENSANDBOX_IMAGE = "opensandbox/code-interpreter:latest";
+export const DEFAULT_OPENSANDBOX_EXECD_PORT = 44772;
+export const DEFAULT_OPENSANDBOX_TIMEOUT_SECONDS = 1800;
+export const DEFAULT_OPENSANDBOX_READY_TIMEOUT_SECONDS = 30;
 export const DEFAULT_SANDBOX_IDLE_HOURS = 24;
 export const DEFAULT_SANDBOX_MAX_AGE_DAYS = 7;
 

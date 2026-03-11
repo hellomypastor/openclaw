@@ -55,6 +55,7 @@ describe("models-config merge helpers", () => {
     const merged = mergeProviders({
       explicit: {
         " custom ": {
+          baseUrl: "https://config.example/v1",
           api: "openai-responses",
           models: [] as ProviderConfig["models"],
         } as ProviderConfig,
@@ -133,6 +134,7 @@ describe("models-config merge helpers", () => {
     const merged = mergeWithExistingProviderSecrets({
       nextProviders: {
         custom: {
+          baseUrl: "https://config.example/v1",
           apiKey: "OPENAI_API_KEY", // pragma: allowlist secret
           models: [{ id: "model", api: "openai-responses" }],
         } as ProviderConfig,

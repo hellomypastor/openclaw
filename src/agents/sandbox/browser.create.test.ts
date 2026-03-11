@@ -47,6 +47,7 @@ vi.mock("../../browser/bridge-server.js", () => ({
 
 function buildConfig(enableNoVnc: boolean): SandboxConfig {
   return {
+    backend: "docker",
     mode: "all",
     scope: "session",
     workspaceAccess: "none",
@@ -60,6 +61,19 @@ function buildConfig(enableNoVnc: boolean): SandboxConfig {
       network: "none",
       capDrop: ["ALL"],
       env: { LANG: "C.UTF-8" },
+    },
+    opensandbox: {
+      endpoint: "http://127.0.0.1:8080",
+      protocol: "http",
+      image: "opensandbox/code-interpreter:latest",
+      workdir: "/workspace",
+      timeoutSeconds: 1800,
+      readyTimeoutSeconds: 30,
+      resourceLimits: {},
+      env: {},
+      metadata: {},
+      extensions: {},
+      execdPort: 44772,
     },
     browser: {
       enabled: true,

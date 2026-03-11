@@ -20,6 +20,7 @@ describe("resolveSandboxWorkdir", () => {
       const resolved = await resolveSandboxWorkdir({
         workdir: "/workspace",
         sandbox: {
+          backend: "docker",
           containerName: "sandbox-1",
           workspaceDir,
           containerWorkdir: "/workspace",
@@ -41,6 +42,7 @@ describe("resolveSandboxWorkdir", () => {
       const resolved = await resolveSandboxWorkdir({
         workdir: "/workspace/scripts/runner",
         sandbox: {
+          backend: "docker",
           containerName: "sandbox-2",
           workspaceDir,
           containerWorkdir: "/workspace",
@@ -62,6 +64,7 @@ describe("resolveSandboxWorkdir", () => {
       const resolved = await resolveSandboxWorkdir({
         workdir: "/sandbox-root/project",
         sandbox: {
+          backend: "docker",
           containerName: "sandbox-3",
           workspaceDir,
           containerWorkdir: "/sandbox-root",

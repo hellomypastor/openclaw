@@ -1,3 +1,4 @@
+import type { SandboxBackend, SandboxOpenSandboxSettings } from "../../config/types.sandbox.js";
 import type { SandboxFsBridge } from "./fs-bridge.js";
 import type { SandboxDockerConfig } from "./types.docker.js";
 
@@ -26,6 +27,8 @@ export type SandboxToolPolicyResolved = {
   };
 };
 
+export type { SandboxBackend } from "../../config/types.sandbox.js";
+
 export type SandboxWorkspaceAccess = "none" | "ro" | "rw";
 
 export type SandboxBrowserConfig = {
@@ -53,11 +56,30 @@ export type SandboxPruneConfig = {
 export type SandboxScope = "session" | "agent" | "shared";
 
 export type SandboxConfig = {
+  backend: SandboxBackend;
   mode: "off" | "non-main" | "all";
   scope: SandboxScope;
   workspaceAccess: SandboxWorkspaceAccess;
   workspaceRoot: string;
   docker: SandboxDockerConfig;
+  opensandbox: Required<
+    Pick<
+      SandboxOpenSandboxSettings,
+      | "endpoint"
+      | "protocol"
+      | "image"
+      | "workdir"
+      | "timeoutSeconds"
+      | "readyTimeoutSeconds"
+      | "resourceLimits"
+      | "env"
+      | "metadata"
+      | "extensions"
+      | "execdPort"
+    >
+  > & {
+    apiKey?: SandboxOpenSandboxSettings["apiKey"];
+  };
   browser: SandboxBrowserConfig;
   tools: SandboxToolPolicy;
   prune: SandboxPruneConfig;
@@ -71,6 +93,7 @@ export type SandboxBrowserContext = {
 
 export type SandboxContext = {
   enabled: boolean;
+  backend: SandboxBackend;
   sessionKey: string;
   workspaceDir: string;
   agentWorkspaceDir: string;
@@ -78,6 +101,12 @@ export type SandboxContext = {
   containerName: string;
   containerWorkdir: string;
   docker: SandboxDockerConfig;
+  opensandbox?: {
+    sandboxId: string;
+    lifecycleBaseUrl: string;
+    execdBaseUrl: string;
+    apiKey?: string;
+  };
   tools: SandboxToolPolicy;
   browserAllowHostControl: boolean;
   browser?: SandboxBrowserContext;

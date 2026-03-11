@@ -1,6 +1,12 @@
 import type { OpenClawConfig } from "../../config/config.js";
 import { resolveAgentConfig } from "../agent-scope.js";
 import {
+  DEFAULT_OPENSANDBOX_ENDPOINT,
+  DEFAULT_OPENSANDBOX_EXECD_PORT,
+  DEFAULT_OPENSANDBOX_IMAGE,
+  DEFAULT_OPENSANDBOX_PROTOCOL,
+  DEFAULT_OPENSANDBOX_READY_TIMEOUT_SECONDS,
+  DEFAULT_OPENSANDBOX_TIMEOUT_SECONDS,
   DEFAULT_SANDBOX_BROWSER_AUTOSTART_TIMEOUT_MS,
   DEFAULT_SANDBOX_BROWSER_CDP_PORT,
   DEFAULT_SANDBOX_BROWSER_IMAGE,
@@ -17,9 +23,11 @@ import {
 } from "./constants.js";
 import { resolveSandboxToolPolicyForAgent } from "./tool-policy.js";
 import type {
+  SandboxBackend,
   SandboxBrowserConfig,
   SandboxConfig,
   SandboxDockerConfig,
+  SandboxWorkspaceAccess,
   SandboxPruneConfig,
   SandboxScope,
 } from "./types.js";
@@ -119,6 +127,55 @@ export function resolveSandboxDockerConfig(params: {
   };
 }
 
+function resolveSandboxBackend(params: {
+  globalBackend?: SandboxBackend;
+  agentBackend?: SandboxBackend;
+}): SandboxBackend {
+  return params.agentBackend ?? params.globalBackend ?? "docker";
+}
+
+function resolveOpenSandboxConfig(params: {
+  globalOpenSandbox?: SandboxConfig["opensandbox"];
+  agentOpenSandbox?: SandboxConfig["opensandbox"];
+}) {
+  return {
+    endpoint:
+      params.agentOpenSandbox?.endpoint ??
+      params.globalOpenSandbox?.endpoint ??
+      DEFAULT_OPENSANDBOX_ENDPOINT,
+    apiKey: params.agentOpenSandbox?.apiKey ?? params.globalOpenSandbox?.apiKey,
+    protocol:
+      params.agentOpenSandbox?.protocol ??
+      params.globalOpenSandbox?.protocol ??
+      DEFAULT_OPENSANDBOX_PROTOCOL,
+    image:
+      params.agentOpenSandbox?.image ??
+      params.globalOpenSandbox?.image ??
+      DEFAULT_OPENSANDBOX_IMAGE,
+    workdir:
+      params.agentOpenSandbox?.workdir ??
+      params.globalOpenSandbox?.workdir ??
+      DEFAULT_SANDBOX_WORKDIR,
+    timeoutSeconds:
+      params.agentOpenSandbox?.timeoutSeconds ??
+      params.globalOpenSandbox?.timeoutSeconds ??
+      DEFAULT_OPENSANDBOX_TIMEOUT_SECONDS,
+    readyTimeoutSeconds:
+      params.agentOpenSandbox?.readyTimeoutSeconds ??
+      params.globalOpenSandbox?.readyTimeoutSeconds ??
+      DEFAULT_OPENSANDBOX_READY_TIMEOUT_SECONDS,
+    resourceLimits:
+      params.agentOpenSandbox?.resourceLimits ?? params.globalOpenSandbox?.resourceLimits ?? {},
+    env: params.agentOpenSandbox?.env ?? params.globalOpenSandbox?.env ?? {},
+    metadata: params.agentOpenSandbox?.metadata ?? params.globalOpenSandbox?.metadata ?? {},
+    extensions: params.agentOpenSandbox?.extensions ?? params.globalOpenSandbox?.extensions ?? {},
+    execdPort:
+      params.agentOpenSandbox?.execdPort ??
+      params.globalOpenSandbox?.execdPort ??
+      DEFAULT_OPENSANDBOX_EXECD_PORT,
+  };
+}
+
 export function resolveSandboxBrowserConfig(params: {
   scope: SandboxScope;
   globalBrowser?: Partial<SandboxBrowserConfig>;
@@ -186,11 +243,32 @@ export function resolveSandboxConfigForAgent(
   });
 
   const toolPolicy = resolveSandboxToolPolicyForAgent(cfg, agentId);
+  const backend = resolveSandboxBackend({
+    globalBackend: agent?.backend,
+    agentBackend: agentSandbox?.backend,
+  });
+  const workspaceAccess = agentSandbox?.workspaceAccess ?? agent?.workspaceAccess ?? "none";
+  const browser = resolveSandboxBrowserConfig({
+    scope,
+    globalBrowser: agent?.browser,
+    agentBrowser: agentSandbox?.browser,
+  });
+  const opensandbox = resolveOpenSandboxConfig({
+    globalOpenSandbox: agent?.opensandbox as SandboxConfig["opensandbox"] | undefined,
+    agentOpenSandbox: agentSandbox?.opensandbox as SandboxConfig["opensandbox"] | undefined,
+  });
+
+  validateResolvedSandboxConfig({
+    backend,
+    workspaceAccess,
+    browserEnabled: browser.enabled,
+  });
 
   return {
+    backend,
     mode: agentSandbox?.mode ?? agent?.mode ?? "off",
     scope,
-    workspaceAccess: agentSandbox?.workspaceAccess ?? agent?.workspaceAccess ?? "none",
+    workspaceAccess,
     workspaceRoot:
       agentSandbox?.workspaceRoot ?? agent?.workspaceRoot ?? DEFAULT_SANDBOX_WORKSPACE_ROOT,
     docker: resolveSandboxDockerConfig({
@@ -198,11 +276,8 @@ export function resolveSandboxConfigForAgent(
       globalDocker: agent?.docker,
       agentDocker: agentSandbox?.docker,
     }),
-    browser: resolveSandboxBrowserConfig({
-      scope,
-      globalBrowser: agent?.browser,
-      agentBrowser: agentSandbox?.browser,
-    }),
+    opensandbox,
+    browser,
     tools: {
       allow: toolPolicy.allow,
       deny: toolPolicy.deny,
@@ -213,4 +288,22 @@ export function resolveSandboxConfigForAgent(
       agentPrune: agentSandbox?.prune,
     }),
   };
+}
+
+function validateResolvedSandboxConfig(params: {
+  backend: SandboxBackend;
+  workspaceAccess: SandboxWorkspaceAccess;
+  browserEnabled: boolean;
+}) {
+  if (params.backend !== "opensandbox") {
+    return;
+  }
+  if (params.workspaceAccess !== "none") {
+    throw new Error(
+      `sandbox.backend=opensandbox currently supports only workspaceAccess=none (got ${params.workspaceAccess}).`,
+    );
+  }
+  if (params.browserEnabled) {
+    throw new Error("sandbox.browser.enabled is not supported when sandbox.backend=opensandbox.");
+  }
 }

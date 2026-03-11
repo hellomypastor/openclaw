@@ -52,6 +52,8 @@ export interface ProcessSession {
   exited: boolean;
   truncated: boolean;
   backgrounded: boolean;
+  onKill?: () => void | Promise<void>;
+  unsupportedInputReason?: string;
 }
 
 export interface FinishedSession {

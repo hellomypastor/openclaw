@@ -146,6 +146,20 @@ export function createProcessTool(
     return true;
   };
 
+  const terminateSession = async (
+    session: ProcessSession,
+  ): Promise<false | "requested" | "terminated"> => {
+    if (session.onKill) {
+      await session.onKill();
+      return "requested";
+    }
+    const canceled = cancelManagedSession(session.id);
+    if (canceled) {
+      return "requested";
+    }
+    return terminateSessionFallback(session) ? "terminated" : false;
+  };
+
   return {
     name: "process",
     label: "process",
@@ -254,6 +268,12 @@ export function createProcessTool(
           return {
             ok: false as const,
             result: failedResult(`Session ${params.sessionId} is not backgrounded.`),
+          };
+        }
+        if (scopedSession.unsupportedInputReason) {
+          return {
+            ok: false as const,
+            result: failedResult(scopedSession.unsupportedInputReason),
           };
         }
         const stdin = scopedSession.stdin ?? scopedSession.child?.stdin;
@@ -544,14 +564,13 @@ export function createProcessTool(
           if (!scopedSession.backgrounded) {
             return failText(`Session ${params.sessionId} is not backgrounded.`);
           }
-          const canceled = cancelManagedSession(scopedSession.id);
-          if (!canceled) {
-            const terminated = terminateSessionFallback(scopedSession);
-            if (!terminated) {
-              return failText(
-                `Unable to terminate session ${params.sessionId}: no active supervisor run or process id.`,
-              );
-            }
+          const terminated = await terminateSession(scopedSession);
+          if (!terminated) {
+            return failText(
+              `Unable to terminate session ${params.sessionId}: no active supervisor run or process id.`,
+            );
+          }
+          if (terminated === "terminated") {
             markExited(scopedSession, null, "SIGKILL", "failed");
           }
           resetPollRetrySuggestion(params.sessionId);
@@ -559,9 +578,10 @@ export function createProcessTool(
             content: [
               {
                 type: "text",
-                text: canceled
-                  ? `Termination requested for session ${params.sessionId}.`
-                  : `Killed session ${params.sessionId}.`,
+                text:
+                  terminated === "requested"
+                    ? `Termination requested for session ${params.sessionId}.`
+                    : `Killed session ${params.sessionId}.`,
               },
             ],
             details: {
@@ -593,18 +613,18 @@ export function createProcessTool(
 
         case "remove": {
           if (scopedSession) {
-            const canceled = cancelManagedSession(scopedSession.id);
-            if (canceled) {
-              // Keep remove semantics deterministic: drop from process registry now.
-              scopedSession.backgrounded = false;
+            const terminated = await terminateSession(scopedSession);
+            if (!terminated) {
+              return failText(
+                `Unable to remove session ${params.sessionId}: no active supervisor run or process id.`,
+              );
+            }
+            if (terminated === "requested") {
+              if (!scopedSession.onKill) {
+                scopedSession.backgrounded = false;
+              }
               deleteSession(params.sessionId);
             } else {
-              const terminated = terminateSessionFallback(scopedSession);
-              if (!terminated) {
-                return failText(
-                  `Unable to remove session ${params.sessionId}: no active supervisor run or process id.`,
-                );
-              }
               markExited(scopedSession, null, "SIGKILL", "failed");
               deleteSession(params.sessionId);
             }
@@ -613,9 +633,10 @@ export function createProcessTool(
               content: [
                 {
                   type: "text",
-                  text: canceled
-                    ? `Removed session ${params.sessionId} (termination requested).`
-                    : `Removed session ${params.sessionId}.`,
+                  text:
+                    terminated === "requested" && !scopedSession.onKill
+                      ? `Removed session ${params.sessionId} (termination requested).`
+                      : `Removed session ${params.sessionId}.`,
                 },
               ],
               details: {

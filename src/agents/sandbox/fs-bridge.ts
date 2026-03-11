@@ -6,6 +6,7 @@ import {
   buildPinnedRenamePlan,
   buildPinnedWritePlan,
 } from "./fs-bridge-mutation-helper.js";
+import { OpenSandboxFsBridgeImpl } from "./fs-bridge-opensandbox.js";
 import { SandboxFsPathGuard } from "./fs-bridge-path-safety.js";
 import { buildStatPlan, type SandboxFsCommandPlan } from "./fs-bridge-shell-command-plans.js";
 import {
@@ -62,10 +63,12 @@ export type SandboxFsBridge = {
 };
 
 export function createSandboxFsBridge(params: { sandbox: SandboxContext }): SandboxFsBridge {
-  return new SandboxFsBridgeImpl(params.sandbox);
+  return params.sandbox.backend === "opensandbox"
+    ? new OpenSandboxFsBridgeImpl(params.sandbox)
+    : new DockerSandboxFsBridgeImpl(params.sandbox);
 }
 
-class SandboxFsBridgeImpl implements SandboxFsBridge {
+class DockerSandboxFsBridgeImpl implements SandboxFsBridge {
   private readonly sandbox: SandboxContext;
   private readonly mounts: ReturnType<typeof buildSandboxFsMounts>;
   private readonly pathGuard: SandboxFsPathGuard;

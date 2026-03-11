@@ -235,6 +235,7 @@ export async function sandboxExplainCommand(
     sessionKey,
     mainSessionKey,
     sandbox: {
+      backend: sandboxCfg.backend,
       mode: sandboxCfg.mode,
       scope: sandboxCfg.scope,
       perSession: sandboxCfg.scope === "session",

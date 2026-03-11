@@ -11,6 +11,8 @@ export function createProcessSessionFixture(params: {
   backgrounded?: boolean;
   pid?: number;
   child?: ChildProcessWithoutNullStreams;
+  onKill?: () => void | Promise<void>;
+  unsupportedInputReason?: string;
 }): ProcessSession {
   const session: ProcessSession = {
     id: params.id,
@@ -31,6 +33,8 @@ export function createProcessSessionFixture(params: {
     exitSignal: undefined,
     truncated: false,
     backgrounded: params.backgrounded ?? false,
+    onKill: params.onKill,
+    unsupportedInputReason: params.unsupportedInputReason,
   };
   if (params.pid !== undefined) {
     session.pid = params.pid;

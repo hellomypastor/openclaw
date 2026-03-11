@@ -90,6 +90,7 @@ function createSandboxConfig(
   workspaceAccess: "rw" | "ro" | "none" = "rw",
 ): SandboxConfig {
   return {
+    backend: "docker",
     mode: "all",
     scope: "shared",
     workspaceAccess,
@@ -107,6 +108,19 @@ function createSandboxConfig(
       extraHosts: ["host.docker.internal:host-gateway"],
       binds: binds ?? ["/tmp/workspace:/workspace:rw"],
       dangerouslyAllowReservedContainerTargets: true,
+    },
+    opensandbox: {
+      endpoint: "http://127.0.0.1:8080",
+      protocol: "http",
+      image: "opensandbox/code-interpreter:latest",
+      workdir: "/workspace",
+      timeoutSeconds: 1800,
+      readyTimeoutSeconds: 30,
+      resourceLimits: {},
+      env: {},
+      metadata: {},
+      extensions: {},
+      execdPort: 44772,
     },
     browser: {
       enabled: false,

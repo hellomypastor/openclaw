@@ -8,6 +8,7 @@ import { findPathKey, mergePathPrepend } from "../infra/path-prepend.js";
 import { enqueueSystemEvent } from "../infra/system-events.js";
 import { scopedHeartbeatWakeOptions } from "../routing/session-key.js";
 import type { ProcessSession } from "./bash-process-registry.js";
+import { runOpenSandboxExecProcess } from "./bash-tools.exec-opensandbox.js";
 import type { ExecToolDetails } from "./bash-tools.exec-types.js";
 import type { BashSandboxConfig } from "./bash-tools.shared.js";
 export { applyPathPrepend, findPathKey, normalizePathPrepend } from "../infra/path-prepend.js";
@@ -384,6 +385,24 @@ export async function runExecProcess(opts: {
     typeof opts.timeoutSec === "number" && opts.timeoutSec > 0
       ? Math.floor(opts.timeoutSec * 1000)
       : undefined;
+
+  if (opts.sandbox?.backend === "opensandbox") {
+    return await runOpenSandboxExecProcess({
+      startedAt,
+      command: opts.command,
+      execCommand,
+      timeoutMs,
+      containerWorkdir: opts.containerWorkdir,
+      sandbox: opts.sandbox,
+      usePty: opts.usePty,
+      session,
+      onStdout: handleStdout,
+      onStderr: handleStderr,
+      onUpdate: opts.onUpdate,
+      emitUpdate,
+      maybeNotifyOnExit,
+    });
+  }
 
   const spawnSpec:
     | {

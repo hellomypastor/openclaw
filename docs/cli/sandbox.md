@@ -1,17 +1,17 @@
 ---
 title: Sandbox CLI
-summary: "Manage sandbox containers and inspect effective sandbox policy"
+summary: "Manage sandbox runtimes and inspect effective sandbox policy"
 read_when: "You are managing sandbox containers or debugging sandbox/tool-policy behavior."
 status: active
 ---
 
 # Sandbox CLI
 
-Manage Docker-based sandbox containers for isolated agent execution.
+Manage sandbox runtimes for isolated agent execution.
 
 ## Overview
 
-OpenClaw can run agents in isolated Docker containers for security. The `sandbox` commands help you manage these containers, especially after updates or configuration changes.
+OpenClaw can run agents in isolated sandbox runtimes for security. The `sandbox` commands help you inspect effective sandbox policy and manage Docker-backed sandbox containers after updates or configuration changes.
 
 ## Commands
 
@@ -28,7 +28,7 @@ openclaw sandbox explain --json
 
 ### `openclaw sandbox list`
 
-List all sandbox containers with their status and configuration.
+List all Docker-backed sandbox containers with their status and configuration.
 
 ```bash
 openclaw sandbox list
@@ -46,7 +46,7 @@ openclaw sandbox list --json     # JSON output
 
 ### `openclaw sandbox recreate`
 
-Remove sandbox containers to force recreation with updated images/config.
+Remove Docker-backed sandbox containers to force recreation with updated images/config.
 
 ```bash
 openclaw sandbox recreate --all                # Recreate all containers
@@ -64,7 +64,7 @@ openclaw sandbox recreate --all --force        # Skip confirmation
 - `--browser`: Only recreate browser containers
 - `--force`: Skip confirmation prompt
 
-**Important:** Containers are automatically recreated when the agent is next used.
+**Important:** Docker containers are automatically recreated when the agent is next used.
 
 ## Use Cases
 
@@ -108,7 +108,7 @@ openclaw sandbox recreate --agent alfred
 
 ## Why is this needed?
 
-**Problem:** When you update sandbox Docker images or configuration:
+**Problem:** When you update Docker sandbox images or configuration:
 
 - Existing containers continue running with old settings
 - Containers are only pruned after 24h of inactivity
@@ -119,6 +119,17 @@ openclaw sandbox recreate --agent alfred
 Tip: prefer `openclaw sandbox recreate` over manual `docker rm`. It uses the
 Gateway’s container naming and avoids mismatches when scope/session keys change.
 
+## Backend awareness
+
+`openclaw sandbox explain` reports the effective sandbox backend, mode, scope, workspace access, and tool policy.
+
+Current management commands are Docker-focused:
+
+- `openclaw sandbox list` lists Docker-backed sandbox containers
+- `openclaw sandbox recreate` recreates Docker-backed sandbox containers
+
+If you use `sandbox.backend: "opensandbox"`, use `sandbox explain` for policy/debugging. Runtime lifecycle is managed through [Alibaba OpenSandbox](https://github.com/alibaba/OpenSandbox) rather than local Docker container commands.
+
 ## Configuration
 
 Sandbox settings live in `~/.openclaw/openclaw.json` under `agents.defaults.sandbox` (per-agent overrides go in `agents.list[].sandbox`):
@@ -128,6 +139,7 @@ Sandbox settings live in `~/.openclaw/openclaw.json` under `agents.defaults.sand
   "agents": {
     "defaults": {
       "sandbox": {
+        "backend": "docker", // docker, opensandbox
         "mode": "all", // off, non-main, all
         "scope": "agent", // session, agent, shared
         "docker": {
